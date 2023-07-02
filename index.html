@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>WView</title>
+        <script>
+            /**
+             * Open file button input handle function.
+             *
+             * @param { Event | undefined } e
+             * @return { void }
+             */
+            function handleFileSelect(e) {
+                // load audio
+                const file = e.target.files[0];
+                const audioURL = window.URL.createObjectURL(file);
+                document
+                    .getElementById("audio-ctr")
+                    .setAttribute("src", audioURL);
+            }
+
+            /**
+             * Playback button pressed handle.
+             *
+             * @param { Event | undefined } e
+             * @return { void }
+             */
+            function playHandle(e) {
+                const audio_ctx = new (window.AudioContext || window.webkitAudioContent)();
+                const audio_elm = document.getElementById("audio-ctr");
+                const source = audio_ctx.createMediaElementSource(audio_elm);
+                const analyzer = audio_ctx.createAnalyser();
+                source.connect(analyzer);
+                analyzer.connect(audio_ctx.destination);
+
+                const gain = audio_ctx.createGain();
+                source.connect(gain);
+                gain.connect(audio_ctx.destination);
+
+                gain.gain.setValueAtTime(0.1, audio_ctx.currentTime);
+            }
+        </script>
+    </head>
+    <body>
+        <h1>WView</h1>
+        <input
+            type="file"
+            id="audio-file"
+            accept=".wav"
+            onchange="handleFileSelect(event)"
+        />
+        <br />
+        <br />
+        <div id="media-ctr">
+            <canvas id="graph-ctr"></canvas>
+            <audio id="audio-ctr" controls onplay="playHandle(event)"></audio>
+        </div>
+    </body>
+</html>
