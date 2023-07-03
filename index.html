@@ -4,7 +4,19 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>WView</title>
-        <script>
+        <script defer>
+            /**
+             * @type { AudioContext }
+             */
+            let audio_ctx;
+
+            window.onload = (e) => {
+                audio_ctx = new AudioContext();
+                const audio_elm = document.getElementById("audio-ctr");
+                const source = audio_ctx.createMediaElementSource(audio_elm);
+                source.connect(audio_ctx.destination);
+            }
+
             /**
              * Open file button input handle function.
              *
@@ -27,18 +39,14 @@
              * @return { void }
              */
             function playHandle(e) {
-                const audio_ctx = new (window.AudioContext || window.webkitAudioContent)();
-                const audio_elm = document.getElementById("audio-ctr");
-                const source = audio_ctx.createMediaElementSource(audio_elm);
-                const analyzer = audio_ctx.createAnalyser();
-                source.connect(analyzer);
-                analyzer.connect(audio_ctx.destination);
-
-                const gain = audio_ctx.createGain();
-                source.connect(gain);
-                gain.connect(audio_ctx.destination);
-
-                gain.gain.setValueAtTime(0.1, audio_ctx.currentTime);
+                if (audio_ctx.state === "suspended") {
+                    audio_ctx.resume().then(() => {
+                        console.log("unsuspend + resumed", audio_ctx.currentTime);
+                    })
+                } else {
+                    console.log("resumed", audio_ctx.currentTime);
+                }
+                
             }
         </script>
     </head>
