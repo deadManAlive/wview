@@ -21,12 +21,12 @@
             let visualizer;
 
             let is_playing = false;
-            const fft_size = 512;
+            const fft_size = 256;
 
             window.onload = (e) => {
                 visualizer = document.getElementById("graph-ctr");
                 audio_ctx = new AudioContext();
-                audio_anz = new AnalyserNode(audio_ctx, { fftSize: fft_size });
+                audio_anz = new AnalyserNode(audio_ctx, { fftSize: fft_size, smoothingTimeConstant: 0.875, maxDecibels: 0, minDecibels: -80 });
 
                 const audio_elm = document.getElementById("audio-ctr");
                 const source = audio_ctx.createMediaElementSource(audio_elm);
@@ -80,6 +80,18 @@
                 is_playing = false;
             }
 
+            /**
+             * @param { number } val
+             * @param { number } a
+             * @param { number } b
+             * @return { number }
+             */ 
+            function sigm(val, a = 10, b = 0.5) {
+                let res = -a * (val  - b);
+                res = Math.exp(res) + 1;
+                return 1 / res;
+            }
+
             function drawVisualizer() {
                 if (!is_playing) {
                     return;
@@ -103,17 +115,26 @@
                 graph_ctx.clearRect(0, 0, width, height);
 
                 fdata.forEach((val, idx) => {
-                    const y = (val / 255) * (height / 2);
+                    const y = (val / 255) * (height / 2) + (idx / bufferLength);
                     const x = bwidth * idx;
                     
                     graph_ctx.fillStyle = "black";
-                    graph_ctx.fillRect(x * (2 - (idx / (bufferLength - 1))), height - y, bwidth * (1 - (idx / bufferLength)), y);
+                    // graph_ctx.fillRect(x * (2 - (idx / (bufferLength - 1))), height * sigm((height - y) / height), bwidth * (1 - (idx / bufferLength)), y);
+                    // graph_ctx.fillRect(x, height - y, bwidth / 2, y);
+                    graph_ctx.fillRect(x, height - y, (bwidth / 4) + (val / 40) * (val / 160), y);
+
                 })
-                requestAnimationFrame(drawVisualizer);
+
+                setTimeout(() => {
+                    requestAnimationFrame(drawVisualizer);
+                }, 1000 / 60);
             }
         </script>
         <style>
             #audio-ctr {
+                width: 100%;
+            }
+            #audio-file {
                 width: 100%;
             }
             canvas {
