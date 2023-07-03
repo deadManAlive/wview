@@ -10,12 +10,30 @@
              */
             let audio_ctx;
 
+            /**
+             * @type { AnalyserNode }
+             */
+            let audio_anz;
+
+            /**
+             * @type { HTMLElement }
+             */
+            let visualizer;
+
+            let is_playing = false;
+            const fft_size = 512;
+
             window.onload = (e) => {
+                visualizer = document.getElementById("graph-ctr");
                 audio_ctx = new AudioContext();
+                audio_anz = new AnalyserNode(audio_ctx, { fftSize: fft_size });
+
                 const audio_elm = document.getElementById("audio-ctr");
                 const source = audio_ctx.createMediaElementSource(audio_elm);
-                source.connect(audio_ctx.destination);
-            }
+                source
+                    .connect(audio_anz)
+                    .connect(audio_ctx.destination);
+            };
 
             /**
              * Open file button input handle function.
@@ -30,6 +48,9 @@
                 document
                     .getElementById("audio-ctr")
                     .setAttribute("src", audioURL);
+
+                const file_size = document.getElementById("file-size");
+                file_size.innerText = `(${(file.size / 1e6).toFixed(2)} MB)`;
             }
 
             /**
@@ -41,28 +62,89 @@
             function playHandle(e) {
                 if (audio_ctx.state === "suspended") {
                     audio_ctx.resume().then(() => {
-                        console.log("unsuspend + resumed", audio_ctx.currentTime);
-                    })
+                        console.log(
+                            "unsuspend + resumed",
+                            audio_ctx.currentTime
+                        );
+                    });
                 } else {
                     console.log("resumed", audio_ctx.currentTime);
                 }
+
+                is_playing = true;
                 
+                drawVisualizer();
+            }
+
+            function pauseHandle(e) {
+                is_playing = false;
+            }
+
+            function drawVisualizer() {
+                if (!is_playing) {
+                    return;
+                }
+
+                const bufferLength = audio_anz.frequencyBinCount;
+                const fdata = new Uint8Array(bufferLength);
+                audio_anz.getByteFrequencyData(fdata);
+
+                /**
+                 * @type { CanvasRenderingContext2D }
+                 */
+                const graph_ctx = visualizer.getContext("2d");
+                graph_ctx.canvas.width = window.innerWidth;
+                graph_ctx.canvas.height = window.innerHeight;
+
+                const width = graph_ctx.canvas.width;
+                const height = graph_ctx.canvas.height;
+                const bwidth = width / bufferLength;
+
+                graph_ctx.clearRect(0, 0, width, height);
+
+                fdata.forEach((val, idx) => {
+                    const y = (val / 255) * (height / 2);
+                    const x = bwidth * idx;
+                    
+                    graph_ctx.fillStyle = "black";
+                    graph_ctx.fillRect(x * (2 - (idx / (bufferLength - 1))), height - y, bwidth * (1 - (idx / bufferLength)), y);
+                })
+                requestAnimationFrame(drawVisualizer);
             }
         </script>
+        <style>
+            #audio-ctr {
+                width: 100%;
+            }
+            canvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: -1;
+                pointer-events: none;
+            }
+            #graph-ctr {
+                width: 100%;
+            }
+        </style>
     </head>
     <body>
-        <h1>WView</h1>
-        <input
-            type="file"
-            id="audio-file"
-            accept=".wav"
-            onchange="handleFileSelect(event)"
-        />
-        <br />
-        <br />
-        <div id="media-ctr">
-            <canvas id="graph-ctr"></canvas>
-            <audio id="audio-ctr" controls onplay="playHandle(event)"></audio>
+        <div class="container">
+            <h1>WView</h1>
+            <input
+                type="file"
+                id="audio-file"
+                accept="audio/*"
+                onchange="handleFileSelect(event)"
+            />
+            <br />
+            <p id="file-size"></p>
+            <br />
+            <br />
+            <audio id="audio-ctr" controls onplay="playHandle(event)" onpause="pauseHandle(event)"></audio>
         </div>
+        <canvas id="graph-ctr"></canvas>
     </body>
 </html>
